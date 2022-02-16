@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class RMSELoss(nn.Module):
@@ -8,9 +9,8 @@ class RMSELoss(nn.Module):
 
         super(RMSELoss, self).__init__()
 
-        self.mse_loss = nn.MSELoss(reduction=reduction)
+        self.reduction = reduction
 
-    def forward(self, y_true, y_pred):
+    def forward(self, inputs, targets):
 
-        loss = torch.sqrt(self.mse_loss(y_pred, y_true))
-        return loss
+        return torch.sqrt(F.mse_loss(inputs, targets, reduction=self.reduction))
