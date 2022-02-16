@@ -8,7 +8,7 @@ def set_seed(seed, deterministic_cudnn=False):
 
     """
     Set random seed for reproducible results
-    
+
     Parameters
     ----------
     seed (int): Random seed
