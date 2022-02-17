@@ -5,6 +5,7 @@ import lightgbm as lgb
 
 import settings
 import visualization
+import postprocessing
 
 
 class LightGBMTrainer:
@@ -66,12 +67,16 @@ class LightGBMTrainer:
             df_feature_importance[f'fold_{fold}_importance'] = model.feature_importance(importance_type='gain')
 
             if len(val_idx) > 0:
-                df_train.loc[val_idx, f'lgb_fold{fold}_predictions'] = model.predict(df_train.loc[val_idx, self.features])
+                val_predictions = postprocessing.clip_negative_values(predictions=model.predict(df_train.loc[val_idx, self.features]))
+                val_predictions = postprocessing.clip_night_values(predictions=val_predictions, night_mask=(df_train.loc[val_idx, 'IsBetweenDawnAndDusk'] == 0))
+                df_train.loc[val_idx, f'lgb_fold{fold}_predictions'] = val_predictions
                 val_score = mean_squared_error(df_train.loc[val_idx, self.target], np.clip(df_train.loc[val_idx, f'lgb_fold{fold}_predictions'], a_min=0, a_max=None), squared=False)
                 scores[fold] = val_score
                 print(f'\nLightGBM Validation RMSE: {val_score:.6f}\n')
 
-            df_test[f'lgb_fold{fold}_predictions'] = np.clip(model.predict(df_test[self.features]), a_min=0, a_max=None)
+            test_predictions = postprocessing.clip_negative_values(model.predict(df_test[self.features]))
+            test_predictions = postprocessing.clip_night_values(predictions=test_predictions, night_mask=(df_test['IsBetweenDawnAndDusk'] == 0))
+            df_test[f'lgb_fold{fold}_predictions'] = test_predictions
 
         print('\n')
         for fold, score in scores.items():
