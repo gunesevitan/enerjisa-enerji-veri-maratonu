@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -78,3 +79,61 @@ def visualize_learning_curve(training_losses, validation_losses, title, path=Non
     else:
         plt.savefig(path)
         plt.close(fig)
+
+
+def visualize_predictions(df_predictions, path=None):
+
+    """
+    Visualize learning curves of the models
+
+    Parameters
+    ----------
+    df_predictions [pandas.DataFrame of shape (n_samples, 5)]: DataFrame of datetime, ground-truth and predictions
+    path (str or None): Path of the output file (if path is None, plot is displayed with selected backend)
+    """
+
+    if 'Generation' in df_predictions.columns:
+        # Visualize predictions along with ground-truth for every fold separately if it is training set
+        for fold in range(1, 4):
+            fold_idx = df_predictions[f'fold{fold}_predictions'].isnull()
+            ground_truth = df_predictions.loc[~fold_idx, ['DateTime', 'Generation']].set_index('DateTime')
+            predictions = df_predictions.loc[~fold_idx, ['DateTime', f'fold{fold}_predictions']].set_index('DateTime')
+            rmse = mean_squared_error(ground_truth, predictions, squared=False)
+
+            fig, ax = plt.subplots(figsize=(32, 8), dpi=100)
+            ax.plot(ground_truth, label='Ground-truth')
+            ax.plot(predictions, label='Predictions')
+            ax.legend(prop={'size': 15})
+            ax.tick_params(axis='x', labelsize=12.5)
+            ax.tick_params(axis='y', labelsize=12.5)
+            ax.set_ylabel('')
+            ax.set_xlabel('')
+            ax.set_title(f'Training Set Fold {fold} Ground-truth and Predictions - RMSE: {rmse:.6f}', fontsize=15, pad=12)
+
+            if path is None:
+                plt.show()
+            else:
+                plt.savefig(f'{str(path).split(".")[0]}_fold{fold}.png')
+                plt.close(fig)
+
+    else:
+        # Visualize predictions of every folds together if it is test set
+        fig, ax = plt.subplots(figsize=(32, 8), dpi=100)
+
+        for fold in range(1, 5):
+            fold_idx = df_predictions[f'fold{fold}_predictions'].isnull()
+            predictions = df_predictions.loc[~fold_idx, ['DateTime', f'fold{fold}_predictions']].set_index('DateTime')
+            ax.plot(predictions, label=f'Fold {fold}', alpha=0.1 * fold)
+
+        ax.legend(prop={'size': 15})
+        ax.tick_params(axis='x', labelsize=12.5)
+        ax.tick_params(axis='y', labelsize=12.5)
+        ax.set_ylabel('')
+        ax.set_xlabel('')
+        ax.set_title(f'Test Set Predictions', fontsize=15, pad=12)
+
+        if path is None:
+            plt.show()
+        else:
+            plt.savefig(path)
+            plt.close(fig)
