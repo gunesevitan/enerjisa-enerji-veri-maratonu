@@ -6,11 +6,11 @@ import settings
 
 class TabularPreprocessor:
 
-    def __init__(self, df_train, df_test, shift_imputation=None):
+    def __init__(self, df_train, df_test, fill_missing_values=False):
 
         self.df_train = df_train.copy(deep=True)
         self.df_test = df_test.copy(deep=True)
-        self.shift_imputation = shift_imputation
+        self.fill_missing_values = fill_missing_values
 
     def get_folds(self):
 
@@ -20,6 +20,19 @@ class TabularPreprocessor:
 
         df_folds = pd.read_pickle(settings.DATA / 'folds.pkl')
         self.df_train = self.df_train.merge(df_folds, how='left', on='DateTime')
+
+    def clean_features(self):
+
+        """
+        Clean features
+        """
+
+        # Change WWCode 84 (Shower(s) of rain and snow, moderate or heavy) to 83 (Shower(s) of rain and snow, slight)
+        # WWCode 84 doesn't exist in training set and the most similar category is 83
+        self.df_test.loc[self.df_test['WWCode'] == 84, 'WWCode'] = 83
+
+        if self.fill_missing_values:
+            self.df_train['WWCode'] = pd.read_csv(settings.DATA / 'wwcode_filled.csv')['WWCode_Filled']
 
     def create_datetime_features(self):
 
@@ -49,56 +62,61 @@ class TabularPreprocessor:
         categorical_features = ['Year']
 
         for categorical_feature in categorical_features:
-            for continuous_feaure in continuous_features:
+            for continuous_feature in continuous_features:
                 for aggregation in ['mean', 'std', 'min', 'max']:
-                    df_agg = df_all.groupby(categorical_feature)[continuous_feaure].agg(aggregation)
-                    self.df_train[f'{categorical_feature}_{continuous_feaure}_{aggregation}'] = self.df_train[categorical_feature].map(df_agg)
-                    self.df_test[f'{categorical_feature}_{continuous_feaure}_{aggregation}'] = self.df_test[categorical_feature].map(df_agg)
+                    df_agg = df_all.groupby(categorical_feature)[continuous_feature].agg(aggregation)
+                    self.df_train[f'{categorical_feature}_{continuous_feature}_{aggregation}'] = self.df_train[categorical_feature].map(df_agg)
+                    self.df_test[f'{categorical_feature}_{continuous_feature}_{aggregation}'] = self.df_test[categorical_feature].map(df_agg)
 
     def create_lag_lead_features(self):
 
         """
-        Create lag/lead features with imputation
+        Create lag/lead features with or without imputation
         """
 
         df_all = pd.concat((self.df_train, self.df_test), axis=0, ignore_index=True)
         continuous_features = ['AirTemperature', 'ComfortTemperature', 'RelativeHumidity', 'EffectiveCloudCover']
 
-        if self.shift_imputation == 'aggregation':
-
-            # Insert new datetime indices correspond to shifted periods
-            datetimes_to_insert = [
-                '2018-12-31 23:00:00',
-                '2022-01-01 00:00:00', '2022-01-01 01:00:00', '2022-01-01 02:00:00',
-                '2022-01-01 03:00:00', '2022-01-01 04:00:00', '2022-01-01 05:00:00',
-            ]
-            df_all = df_all.set_index('DateTime')
-            for datetime in datetimes_to_insert:
-                df_all = pd.concat((df_all, pd.DataFrame(index=[pd.to_datetime(datetime)])))
-            df_all = df_all.reset_index().rename(columns={'index': 'DateTime'})
-
-            # Use mean values of Month/DayOfMonth/HourOfDay group's to fill missing values
-            df_all['Month'] = df_all['DateTime'].dt.month
-            df_all['DayOfMonth'] = df_all['DateTime'].dt.day
-            df_all['HourOfDay'] = df_all['DateTime'].dt.hour
-
-            for continuous_feature in continuous_features:
-                df_all[continuous_feature] = df_all.groupby(['Month', 'DayOfMonth', 'HourOfDay'])[continuous_feature].apply(lambda x: x.fillna(x.mean()))
-
-        # Shift with imputed values
+        # Shift features with or without imputation
         for continuous_feature in continuous_features:
+
             for period in [-6, -5, -4, -3, -2, -1, 1]:
 
-                if continuous_feature != 'EffectiveCloudCover' and period < -1:
-                    continue
-
                 if period > 0:
-                    shifted_feature = df_all[continuous_feature].shift(periods=period).bfill().values
+                    if self.fill_missing_values:
+                        shift_feature = df_all[continuous_feature].shift(periods=period).bfill().values
+                    else:
+                        shift_feature = df_all[continuous_feature].shift(periods=period).values
                 else:
-                    shifted_feature = df_all[continuous_feature].shift(periods=period).ffill().values
+                    if self.fill_missing_values:
+                        shift_feature = df_all[continuous_feature].shift(periods=period).ffill().values
+                    else:
+                        shift_feature = df_all[continuous_feature].shift(periods=period).values
 
-                self.df_train[f'{continuous_feature}_shift{period}'] = shifted_feature[0:len(self.df_train)]
-                self.df_test[f'{continuous_feature}_shift{period}'] = shifted_feature[len(self.df_train):len(self.df_train) + len(self.df_test)]
+                self.df_train[f'{continuous_feature}_shift{period}'] = shift_feature[:len(self.df_train)]
+                self.df_test[f'{continuous_feature}_shift{period}'] = shift_feature[len(self.df_train):]
+
+            # Diff features with or without imputation
+            for period in [1]:
+
+                if self.fill_missing_values:
+                    diff_feature = df_all[continuous_feature].diff(periods=period).fillna(0).values
+                else:
+                    diff_feature = df_all[continuous_feature].diff(periods=period).values
+
+                self.df_train[f'{continuous_feature}_diff{period}'] = diff_feature[:len(self.df_train)]
+                self.df_test[f'{continuous_feature}_diff{period}'] = diff_feature[len(self.df_train):]
+
+            # Percentage change features with or without imputation
+            for period in [-1, 1]:
+
+                if self.fill_missing_values:
+                    pct_change_feature = df_all[continuous_feature].pct_change(periods=period).fillna(0).values
+                else:
+                    pct_change_feature = df_all[continuous_feature].pct_change(periods=period).values
+
+                self.df_train[f'{continuous_feature}_pct_change{period}'] = pct_change_feature[:len(self.df_train)]
+                self.df_test[f'{continuous_feature}_pct_change{period}'] = pct_change_feature[len(self.df_train):]
 
     def create_rolling_features(self):
 
@@ -107,12 +125,13 @@ class TabularPreprocessor:
         """
 
         df_all = pd.concat((self.df_train, self.df_test), axis=0, ignore_index=True)
-        continuous_features = ['AirTemperature', 'ComfortTemperature', 'RelativeHumidity', 'WindSpeed', 'WindDirection', 'EffectiveCloudCover']
+        continuous_features = ['AirTemperature', 'ComfortTemperature', 'RelativeHumidity', 'EffectiveCloudCover']
+
         for continuous_feature in continuous_features:
             for window in [3, 6]:
                 for aggregation in ['mean', 'std']:
                     rolling_feature = df_all.rolling(window=window, min_periods=1)[continuous_feature].agg(aggregation).values
-                    self.df_train[f'{continuous_feature}_rolling{window}_{aggregation}'] = rolling_feature[0:len(self.df_train)]
+                    self.df_train[f'{continuous_feature}_rolling{window}_{aggregation}'] = rolling_feature[:len(self.df_train)]
                     self.df_test[f'{continuous_feature}_rolling{window}_{aggregation}'] = rolling_feature[len(self.df_train):]
 
     def create_sun_features(self):
@@ -138,6 +157,7 @@ class TabularPreprocessor:
     def transform(self):
 
         self.get_folds()
+        self.clean_features()
         self.create_datetime_features()
         self.create_aggregation_features()
         self.create_lag_lead_features()
