@@ -69,21 +69,30 @@ class LightGBMTrainer:
             if len(val_idx) > 0:
                 val_predictions = postprocessing.clip_negative_values(predictions=model.predict(df_train.loc[val_idx, self.features]))
                 val_predictions = postprocessing.clip_night_values(predictions=val_predictions, night_mask=(df_train.loc[val_idx, 'IsBetweenDawnAndDusk'] == 0))
-                df_train.loc[val_idx, f'lgb_fold{fold}_predictions'] = val_predictions
-                val_score = mean_squared_error(df_train.loc[val_idx, self.target], np.clip(df_train.loc[val_idx, f'lgb_fold{fold}_predictions'], a_min=0, a_max=None), squared=False)
+                df_train.loc[val_idx, f'fold{fold}_predictions'] = val_predictions
+                val_score = mean_squared_error(df_train.loc[val_idx, self.target], np.clip(df_train.loc[val_idx, f'fold{fold}_predictions'], a_min=0, a_max=None), squared=False)
                 scores[fold] = val_score
                 print(f'\nLightGBM Validation RMSE: {val_score:.6f}\n')
 
             test_predictions = postprocessing.clip_negative_values(model.predict(df_test[self.features]))
             test_predictions = postprocessing.clip_night_values(predictions=test_predictions, night_mask=(df_test['IsBetweenDawnAndDusk'] == 0))
-            df_test[f'lgb_fold{fold}_predictions'] = test_predictions
+            df_test[f'fold{fold}_predictions'] = test_predictions
 
         print('\n')
         for fold, score in scores.items():
             print(f'Fold {fold} - Validation RMSE: {score:.6f}')
         print(f'{"-" * 30}\nLightGBM Mean Validation Score: {np.mean(list(scores.values())):6f} (±{np.std(list(scores.values())):2f})\n{"-" * 30}\n')
 
-        df_test[['DateTime'] + [f'lgb_fold{fold}_predictions' for fold in range(1, 5)]].to_csv(settings.MODELS / 'lightgbm' / 'test_predictions.csv', index=False)
+        df_train[['DateTime', 'Generation'] + [f'fold{fold}_predictions' for fold in range(1, 4)]].to_csv(settings.MODELS / 'lightgbm' / 'train_predictions.csv', index=False)
+        visualization.visualize_predictions(
+            df_predictions=df_train[['DateTime', 'Generation'] + [f'fold{fold}_predictions' for fold in range(1, 4)]],
+            path=settings.MODELS / 'lightgbm' / 'train_predictions.png'
+        )
+        df_test[['DateTime'] + [f'fold{fold}_predictions' for fold in range(1, 5)]].to_csv(settings.MODELS / 'lightgbm' / 'test_predictions.csv', index=False)
+        visualization.visualize_predictions(
+            df_predictions=df_test[['DateTime'] + [f'fold{fold}_predictions' for fold in range(1, 5)]],
+            path=settings.MODELS / 'lightgbm' / 'test_predictions.png'
+        )
         df_feature_importance['mean_importance'] = df_feature_importance[[f'fold_{fold}_importance' for fold in range(1, 5)]].mean(axis=1)
         df_feature_importance['std_importance'] = df_feature_importance[[f'fold_{fold}_importance' for fold in range(1, 5)]].std(axis=1)
         visualization.visualize_feature_importance(
