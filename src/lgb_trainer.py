@@ -74,7 +74,7 @@ class LightGBMTrainer:
                 scores[fold] = val_score
                 print(f'\nLightGBM Validation RMSE: {val_score:.6f}\n')
 
-            test_predictions = postprocessing.clip_negative_values(model.predict(df_test[self.features]))
+            test_predictions = postprocessing.clip_negative_values(predictions=model.predict(df_test[self.features]))
             test_predictions = postprocessing.clip_night_values(predictions=test_predictions, night_mask=(df_test['IsBetweenDawnAndDusk'] == 0))
             df_test[f'fold{fold}_predictions'] = test_predictions
 

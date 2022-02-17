@@ -1,16 +1,18 @@
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 import settings
 
 
 class TabularPreprocessor:
 
-    def __init__(self, df_train, df_test, fill_missing_values=False):
+    def __init__(self, df_train, df_test, fill_missing_values=False, normalize=False):
 
         self.df_train = df_train.copy(deep=True)
         self.df_test = df_test.copy(deep=True)
         self.fill_missing_values = fill_missing_values
+        self.normalize = normalize
 
     def get_folds(self):
 
@@ -130,7 +132,7 @@ class TabularPreprocessor:
         for continuous_feature in continuous_features:
             for window in [3, 6]:
                 for aggregation in ['mean', 'std']:
-                    rolling_feature = df_all.rolling(window=window, min_periods=1)[continuous_feature].agg(aggregation).values
+                    rolling_feature = df_all.rolling(window=window, min_periods=1)[continuous_feature].agg(aggregation).fillna(0).values
                     self.df_train[f'{continuous_feature}_rolling{window}_{aggregation}'] = rolling_feature[:len(self.df_train)]
                     self.df_test[f'{continuous_feature}_rolling{window}_{aggregation}'] = rolling_feature[len(self.df_train):]
 
@@ -154,6 +156,41 @@ class TabularPreprocessor:
             df['IsBetweenSunriseAndSunset'] = np.int64((df['Time'] > df['Sunrise']) & (df['Time'] < df['Sunset']))
             df['IsBetweenDawnAndDusk'] = np.int64((df['Time'] > df['Dawn']) & (df['Time'] < df['Dusk']))
 
+    def normalize_features(self):
+
+        """
+        Normalize continuous features
+        """
+
+        df_all = pd.concat((self.df_train, self.df_test), axis=0, ignore_index=True)
+
+        # Standardize continuous features
+        continuous_features = [
+            'AirTemperature', 'ComfortTemperature', 'RelativeHumidity', 'EffectiveCloudCover',
+            'Year_AirTemperature_mean', 'Year_AirTemperature_std', 'Year_AirTemperature_min', 'Year_AirTemperature_max',
+            'AirTemperature_shift-1', 'ComfortTemperature_shift-1', 'RelativeHumidity_shift-1',
+            'EffectiveCloudCover_shift-1', 'EffectiveCloudCover_shift-2', 'EffectiveCloudCover_shift-3',
+            'EffectiveCloudCover_shift-4', 'EffectiveCloudCover_shift-5', 'EffectiveCloudCover_shift-6',
+            'EffectiveCloudCover_shift1', 'EffectiveCloudCover_diff1',
+            'AirTemperature_rolling3_mean', 'AirTemperature_rolling3_std',
+            'AirTemperature_rolling6_mean', 'AirTemperature_rolling6_std',
+            'EffectiveCloudCover_rolling3_mean', 'EffectiveCloudCover_rolling3_std',
+        ]
+        scaler = StandardScaler()
+        for continuous_feature in continuous_features:
+            scaler.fit(df_all[continuous_feature].values.reshape(-1, 1))
+            self.df_train[continuous_feature] = scaler.transform(self.df_train[continuous_feature].values.reshape(-1, 1))
+            self.df_test[continuous_feature] = scaler.transform(self.df_test[continuous_feature].values.reshape(-1, 1))
+
+        # Encode cyclical continuous features
+        for df in [self.df_train, self.df_test]:
+            df['MonthSin'] = np.sin(2 * np.pi * df['Month'] / 12)
+            df['MonthCos'] = np.cos(2 * np.pi * df['Month'] / 12)
+            df['HourOfDaySin'] = np.sin(2 * np.pi * df['HourOfDay'] / 24)
+            df['HourOfDayCos'] = np.cos(2 * np.pi * df['HourOfDay'] / 24)
+            df['DayOfYearSin'] = np.sin(2 * np.pi * df['DayOfYear'] / 365)
+            df['DayOfYearCos'] = np.cos(2 * np.pi * df['DayOfYear'] / 365)
+
     def transform(self):
 
         self.get_folds()
@@ -163,5 +200,8 @@ class TabularPreprocessor:
         self.create_lag_lead_features()
         self.create_rolling_features()
         self.create_sun_features()
+
+        if self.normalize:
+            self.normalize_features()
 
         return self.df_train, self.df_test
