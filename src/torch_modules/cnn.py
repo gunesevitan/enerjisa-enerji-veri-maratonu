@@ -20,7 +20,7 @@ class Conv1dBlock(nn.Module):
                 bias=True
             ),
             nn.BatchNorm1d(num_features=output_dim),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(negative_slope=0.1),
         )
         self.downsample = nn.Sequential(
             nn.Conv1d(
@@ -61,29 +61,29 @@ class ConvolutionalNeuralNetwork(nn.Module):
         )
         self.conv_block2 = Conv1dBlock(
             input_dim=64,
-            output_dim=128,
+            output_dim=96,
             kernel_size=5,
             stride=1,
             skip_connection=True,
         )
         self.conv_block3 = Conv1dBlock(
-            input_dim=128,
-            output_dim=192,
-            kernel_size=7,
+            input_dim=96,
+            output_dim=128,
+            kernel_size=3,
             stride=1,
             skip_connection=True,
         )
         self.conv_block4 = Conv1dBlock(
-            input_dim=192,
+            input_dim=128,
             output_dim=256,
-            kernel_size=7,
+            kernel_size=3,
             stride=1,
             skip_connection=True,
         )
         self.pooling = nn.AdaptiveAvgPool1d(1)
         self.head = nn.Sequential(
             nn.Linear(in_features=256, out_features=sequence_length, bias=True),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
 
     def forward(self, x):
