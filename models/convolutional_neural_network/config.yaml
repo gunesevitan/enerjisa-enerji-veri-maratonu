@@ -1,0 +1,49 @@
+model: convolutional_neural_network
+fill_missing_values: True
+normalize_features: True
+
+features: [
+  # Raw features
+  'AirTemperature', 'ComfortTemperature', 'RelativeHumidity', 'EffectiveCloudCover',
+  # DateTime features
+  'MonthSin', 'MonthCos', 'HourOfDaySin', 'HourOfDayCos', 'DayOfYearSin', 'DayOfYearCos',
+  'WeekOfYearSin', 'WeekOfYearCos',
+  # Shift- features
+  'EffectiveCloudCover_shift-1', 'EffectiveCloudCover_shift-2', 'EffectiveCloudCover_shift-3',
+  'EffectiveCloudCover_shift-4', 'EffectiveCloudCover_shift-5', 'EffectiveCloudCover_shift-6',
+]
+target: 'Generation'
+
+model_parameters:
+  model_class: ConvolutionalNeuralNetwork
+  model_args:
+    input_dim: 18
+    sequence_length: 24
+  sequence_length: 24
+  model_checkpoint_path: null
+  model_filename: convolutional_neural_network
+
+training_parameters:
+  loss_function: RMSELoss
+  loss_args: {}
+  optimizer: Adam
+  optimizer_args:
+    lr: 0.01
+    betas:
+      - 0.9
+      - 0.999
+    weight_decay: 0.000001
+  lr_scheduler: StepLR
+  lr_scheduler_args:
+    step_size: 100
+    gamma: 0.5
+    last_epoch: -1
+  epochs: 50
+  early_stopping_patience: 15
+  data_loader:
+    training_batch_size: 32
+    test_batch_size: 128
+    num_workers: 4
+  random_state: 42
+  deterministic_cudnn: True
+  device: cuda
