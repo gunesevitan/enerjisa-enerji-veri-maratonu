@@ -8,10 +8,10 @@ class DenseBlock(nn.Module):
         super(DenseBlock, self).__init__()
 
         self.dense_block = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim, bias=True),
-            nn.BatchNorm1d(hidden_dim),
+            nn.Linear(in_features=input_dim, out_features=hidden_dim, bias=True),
+            nn.BatchNorm1d(num_features=hidden_dim),
             nn.ReLU(inplace=True),
-            nn.Linear(hidden_dim, output_dim, bias=True),
+            nn.Linear(in_features=hidden_dim, out_features=output_dim, bias=True),
         )
 
     def forward(self, x):
@@ -31,7 +31,7 @@ class MultiLayerPerceptron(nn.Module):
         self.dense_block3 = DenseBlock(input_dim=512, hidden_dim=384, output_dim=256)
         self.dense_block4 = DenseBlock(input_dim=256, hidden_dim=128, output_dim=64)
         self.head = nn.Sequential(
-            nn.Linear(64, 1, bias=True),
+            nn.Linear(in_features=64, out_features=1, bias=True),
             nn.ReLU(inplace=True)
         )
 
