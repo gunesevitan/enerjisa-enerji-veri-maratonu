@@ -1,0 +1,55 @@
+model: tabular_neural_network
+fill_missing_values: True
+normalize_features: True
+
+features: [
+  # Raw features
+  'AirTemperature', 'ComfortTemperature', 'RelativeHumidity', 'EffectiveCloudCover',
+  # DateTime features
+  'MonthSin', 'MonthCos', 'HourOfDaySin', 'HourOfDayCos', 'DayOfYearSin', 'DayOfYearCos',
+  'WeekOfYearSin', 'WeekOfYearCos',
+  # Aggregation features
+  'Year_AirTemperature_mean', 'Year_AirTemperature_std', 'Year_AirTemperature_min', 'Year_AirTemperature_max',
+  ## Lag/Lead features
+  'AirTemperature_shift-1', 'ComfortTemperature_shift-1', 'RelativeHumidity_shift-1',
+  'EffectiveCloudCover_shift-1', 'EffectiveCloudCover_shift-2', 'EffectiveCloudCover_shift-3',
+  'EffectiveCloudCover_shift-4', 'EffectiveCloudCover_shift-5', 'EffectiveCloudCover_shift-6',
+  'EffectiveCloudCover_shift1', 'EffectiveCloudCover_diff1',
+  ## Rolling features
+  'AirTemperature_rolling3_mean', 'AirTemperature_rolling3_std',
+  'AirTemperature_rolling6_mean', 'AirTemperature_rolling6_std',
+  'EffectiveCloudCover_rolling3_mean', 'EffectiveCloudCover_rolling3_std',
+]
+target: 'Generation'
+
+model_parameters:
+  model_class: MultiLayerPerceptron
+  model_args:
+    input_dim: 33
+  model_checkpoint_path: null
+  model_filename: tabular_neural_network
+
+training_parameters:
+  loss_function: RMSELoss
+  loss_args: {}
+  optimizer: Adam
+  optimizer_args:
+    lr: 0.01
+    betas:
+      - 0.9
+      - 0.999
+    weight_decay: 0.00001
+  lr_scheduler: StepLR
+  lr_scheduler_args:
+    step_size: 1250
+    gamma: 0.5
+    last_epoch: -1
+  epochs: 30
+  early_stopping_patience: 15
+  data_loader:
+    training_batch_size: 32
+    test_batch_size: 128
+    num_workers: 4
+  random_state: 42
+  deterministic_cudnn: False
+  device: cuda
