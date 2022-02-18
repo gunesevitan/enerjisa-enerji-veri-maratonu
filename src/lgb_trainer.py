@@ -43,11 +43,13 @@ class LightGBMTrainer:
             print(f'Fold {fold} - Training: {df_train.loc[trn_idx, "DateTime"].min()} - {df_train.loc[trn_idx, "DateTime"].max()} Validation: {df_train.loc[val_idx, "DateTime"].min()} - {df_train.loc[val_idx, "DateTime"].max()}')
 
             trn_dataset = lgb.Dataset(df_train.loc[trn_idx, self.features], label=df_train.loc[trn_idx, self.target], categorical_feature=self.categorical_features)
+            # Create validation dataset if current fold has validation index
             if len(val_idx) > 0:
                 val_dataset = lgb.Dataset(df_train.loc[val_idx, self.features], label=df_train.loc[val_idx, self.target], categorical_feature=self.categorical_features)
             else:
                 val_dataset = None
 
+            # Set model parameters, train parameters and callbacks
             model = lgb.train(
                 params=self.model_parameters,
                 train_set=trn_dataset,
@@ -78,11 +80,12 @@ class LightGBMTrainer:
             test_predictions = postprocessing.clip_night_values(predictions=test_predictions, night_mask=(df_test['IsBetweenDawnAndDusk'] == 0))
             df_test[f'fold{fold}_predictions'] = test_predictions
 
+        # Display scores of validation splits
         print('\n')
         for fold, score in scores.items():
             print(f'Fold {fold} - Validation RMSE: {score:.6f}')
         print(f'{"-" * 30}\nLightGBM Mean Validation Score: {np.mean(list(scores.values())):6f} (±{np.std(list(scores.values())):2f})\n{"-" * 30}\n')
-
+        # Save validation and test predictions along with DateTime
         df_train[['DateTime', 'Generation'] + [f'fold{fold}_predictions' for fold in range(1, 4)]].to_csv(settings.MODELS / 'lightgbm' / 'train_predictions.csv', index=False)
         visualization.visualize_predictions(
             df_predictions=df_train[['DateTime', 'Generation'] + [f'fold{fold}_predictions' for fold in range(1, 4)]],
