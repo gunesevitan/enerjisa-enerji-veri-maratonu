@@ -43,7 +43,7 @@ class SequenceDataset(Dataset):
     def __init__(self, features, labels=None, sequence_length=24):
 
         self.features = features.reshape(-1, sequence_length, features.shape[1])
-        self.labels = labels.reshape(-1, sequence_length)
+        self.labels = labels.reshape(-1, sequence_length) if labels is not None else None
 
     def __len__(self):
         return len(self.features)
