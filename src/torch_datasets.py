@@ -38,7 +38,7 @@ class TabularDataset(Dataset):
             return features
 
 
-class TimeSeriesDataset(Dataset):
+class SequenceDataset(Dataset):
 
     def __init__(self, features, labels=None, sequence_length=24):
 
