@@ -142,6 +142,7 @@ class TabularPreprocessor:
         Read and merge pre-computed sun features
         """
 
+        # Read sun features and convert them to datetime
         df_sun = pd.read_csv(settings.DATA / 'sun.csv')
         df_sun['Date'] = pd.to_datetime(df_sun['Date'])
         df_sun['Dawn'] = pd.to_datetime(df_sun['Dawn']).dt.time
@@ -152,9 +153,17 @@ class TabularPreprocessor:
         self.df_train = self.df_train.merge(df_sun, how='left', on='Date')
         self.df_test = self.df_test.merge(df_sun, how='left', on='Date')
 
+        # Create binary day-night masks
         for df in [self.df_train, self.df_test]:
             df['IsBetweenSunriseAndSunset'] = np.int64((df['Time'] > df['Sunrise']) & (df['Time'] < df['Sunset']))
             df['IsBetweenDawnAndDusk'] = np.int64((df['Time'] > df['Dawn']) & (df['Time'] < df['Dusk']))
+
+        # Create total day-time feature for every day
+        df_all = pd.concat((self.df_train, self.df_test), axis=0, ignore_index=True)
+        for sun_feature in ['IsBetweenSunriseAndSunset', 'IsBetweenDawnAndDusk']:
+            agg_feature = df_all.groupby(['Year', 'DayOfYear'])[sun_feature].transform('sum').values
+            self.df_train[f'Year_DayOfYear_{sun_feature}_sum'] = agg_feature[:len(self.df_train)]
+            self.df_test[f'Year_DayOfYear_{sun_feature}_sum'] = agg_feature[len(self.df_train):]
 
     def normalize_features(self):
 
@@ -190,6 +199,10 @@ class TabularPreprocessor:
             df['HourOfDayCos'] = np.cos(2 * np.pi * df['HourOfDay'] / 24)
             df['DayOfYearSin'] = np.sin(2 * np.pi * df['DayOfYear'] / 365)
             df['DayOfYearCos'] = np.cos(2 * np.pi * df['DayOfYear'] / 365)
+            df['WeekOfYearSin'] = np.sin(2 * np.pi * df['WeekOfYear'] / 52)
+            df['WeekOfYearCos'] = np.cos(2 * np.pi * df['WeekOfYear'] / 52)
+            df['DayOfWeekSin'] = np.sin(2 * np.pi * df['DayOfWeek'] / 7)
+            df['DayOfWeekCos'] = np.cos(2 * np.pi * df['DayOfWeek'] / 7)
 
     def transform(self):
 
