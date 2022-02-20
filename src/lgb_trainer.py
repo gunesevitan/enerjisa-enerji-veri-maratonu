@@ -54,7 +54,7 @@ class LightGBMTrainer:
                 params=self.model_parameters,
                 train_set=trn_dataset,
                 valid_sets=[trn_dataset, val_dataset] if val_dataset is not None else [trn_dataset],
-                num_boost_round=self.fit_parameters['boosting_rounds'],
+                num_boost_round=self.fit_parameters['boosting_rounds'] if fold < 4 else 5000,
                 callbacks=[
                     lgb.early_stopping(self.fit_parameters['early_stopping_rounds']),
                     lgb.log_evaluation(self.fit_parameters['verbose_eval'])
@@ -72,7 +72,7 @@ class LightGBMTrainer:
                 val_predictions = postprocessing.clip_negative_values(predictions=model.predict(df_train.loc[val_idx, self.features]))
                 val_predictions = postprocessing.clip_night_values(predictions=val_predictions, night_mask=(df_train.loc[val_idx, 'IsBetweenDawnAndDusk'] == 0))
                 df_train.loc[val_idx, f'fold{fold}_predictions'] = val_predictions
-                val_score = mean_squared_error(df_train.loc[val_idx, self.target], np.clip(df_train.loc[val_idx, f'fold{fold}_predictions'], a_min=0, a_max=None), squared=False)
+                val_score = mean_squared_error(df_train.loc[val_idx, self.target], df_train.loc[val_idx, f'fold{fold}_predictions'], squared=False)
                 scores[fold] = val_score
                 print(f'\nLightGBM Validation RMSE: {val_score:.6f}\n')
 

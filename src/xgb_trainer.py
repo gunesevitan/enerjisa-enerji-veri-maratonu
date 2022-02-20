@@ -53,7 +53,7 @@ class XGBoostTrainer:
                 params=self.model_parameters,
                 dtrain=trn_dataset,
                 evals=[(trn_dataset, 'train'), (val_dataset, 'val')] if val_dataset is not None else [(trn_dataset, 'train')],
-                num_boost_round=self.fit_parameters['boosting_rounds'] if fold < 4 else 8000,
+                num_boost_round=self.fit_parameters['boosting_rounds'] if fold < 4 else 5000,
                 early_stopping_rounds=self.fit_parameters['early_stopping_rounds'],
                 verbose_eval=self.fit_parameters['verbose_eval'],
             )
