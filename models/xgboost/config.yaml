@@ -1,0 +1,53 @@
+model: xgboost
+fill_missing_values: False
+normalize_features: False
+
+features: [
+  # Raw features
+  'AirTemperature', 'ComfortTemperature', 'RelativeHumidity', 'WWCode', 'EffectiveCloudCover',
+  # DateTime features
+  'Month', 'HourOfDay', 'DayOfYear',
+  # Aggregation features
+  'Year_AirTemperature_mean', 'Year_AirTemperature_std', 'Year_AirTemperature_min', 'Year_AirTemperature_max',
+  # Shift- features
+  'AirTemperature_shift-1',
+  'ComfortTemperature_shift-1',
+  'RelativeHumidity_shift-1',
+  'EffectiveCloudCover_shift-1', 'EffectiveCloudCover_shift-2', 'EffectiveCloudCover_shift-3',
+  'EffectiveCloudCover_shift-4', 'EffectiveCloudCover_shift-5', 'EffectiveCloudCover_shift-6',
+  'EffectiveCloudCover_shift-7', 'EffectiveCloudCover_shift-8', 'EffectiveCloudCover_shift-9',
+  'EffectiveCloudCover_shift-10',
+  # Shift+ features
+  'EffectiveCloudCover_shift1',
+  # Diff+ features
+  'EffectiveCloudCover_diff1',
+  # Rolling features
+  'AirTemperature_rolling3_mean', 'AirTemperature_rolling3_std',
+  'AirTemperature_rolling6_mean', 'AirTemperature_rolling6_std',
+  'EffectiveCloudCover_rolling3_mean', 'EffectiveCloudCover_rolling3_std',
+  'EffectiveCloudCover_rolling3_sum', 'EffectiveCloudCover_rolling3_var',
+  'EffectiveCloudCover_rolling6_mean', 'EffectiveCloudCover_rolling6_std',
+  'EffectiveCloudCover_rolling6_sum', 'EffectiveCloudCover_rolling6_var',
+]
+target: 'Generation'
+
+model_parameters:
+  learning_rate: 0.01
+  gamma: 0.1
+  max_depth: 6
+  min_child_weight: 100
+  subsample: 0.9
+  colsample_bytree: 0.9
+  colsample_bylevel: 0.9
+  colsample_bynode: 0.7
+  lambda: 0
+  alpha: 0
+  objective: reg:squarederror
+  seed: 42
+  tree_method: auto
+  n_jobs: -1
+
+fit_parameters:
+  boosting_rounds: 5000
+  early_stopping_rounds: 250
+  verbose_eval: 100
