@@ -1,0 +1,64 @@
+model: lightgbm
+fill_missing_values: False
+normalize_features: False
+
+features: [
+  # Raw features
+  'AirTemperature', 'ComfortTemperature', 'RelativeHumidity', 'WWCode', 'EffectiveCloudCover',
+  # DateTime features
+  'Month', 'HourOfDay', 'DayOfYear',
+  # Aggregation features
+  'Year_AirTemperature_mean', 'Year_AirTemperature_std', 'Year_AirTemperature_min', 'Year_AirTemperature_max',
+  'Year_Month_AirTemperature_mean', 'Year_Month_AirTemperature_std', 'Year_Month_AirTemperature_min', 'Year_Month_AirTemperature_max',
+  'Year_RelativeHumidity_mean', 'Year_RelativeHumidity_std', 'Year_RelativeHumidity_min', 'Year_RelativeHumidity_max',
+  # Shift- features
+  'AirTemperature_shift-1',
+  'ComfortTemperature_shift-1',
+  'RelativeHumidity_shift-1',
+  'EffectiveCloudCover_shift-1', 'EffectiveCloudCover_shift-2', 'EffectiveCloudCover_shift-3',
+  'EffectiveCloudCover_shift-4', 'EffectiveCloudCover_shift-5', 'EffectiveCloudCover_shift-6',
+  'EffectiveCloudCover_shift-7', 'EffectiveCloudCover_shift-8', 'EffectiveCloudCover_shift-9',
+  'EffectiveCloudCover_shift-10',
+  # Shift+ features
+  'EffectiveCloudCover_shift1',
+  # Diff+ features
+  'EffectiveCloudCover_diff1',
+  # Rolling features
+  'AirTemperature_rolling3_mean', 'AirTemperature_rolling3_std',
+  'AirTemperature_rolling6_mean', 'AirTemperature_rolling6_std',
+  'EffectiveCloudCover_rolling3_mean', 'EffectiveCloudCover_rolling3_std',
+  'EffectiveCloudCover_rolling3_sum', 'EffectiveCloudCover_rolling3_var',
+  'EffectiveCloudCover_rolling6_mean', 'EffectiveCloudCover_rolling6_std',
+  'EffectiveCloudCover_rolling6_sum', 'EffectiveCloudCover_rolling6_var',
+]
+target: 'Generation'
+categorical_features: ['HourOfDay', 'WWCode']
+
+model_parameters:
+  num_leaves: 32
+  learning_rate: 0.01
+  bagging_fraction: 0.9
+  bagging_freq: 1
+  feature_fraction: 0.9
+  feature_fraction_bynode: 0.55
+  min_data_in_leaf: 150
+  min_gain_to_split: 0
+  lambda_l1: 0
+  lambda_l2: 0
+  max_bin: 365
+  max_depth: -1
+  objective: regression
+  seed: 42
+  feature_fraction_seed: 42
+  bagging_seed: 42
+  drop_seed: 42
+  data_random_seed: 42
+  boosting_type: gbdt
+  verbose: 1
+  metric: rmse
+  n_jobs: -1
+
+fit_parameters:
+  boosting_rounds: 5000
+  early_stopping_rounds: 250
+  verbose_eval: 100
