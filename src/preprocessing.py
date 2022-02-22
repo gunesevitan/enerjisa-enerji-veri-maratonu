@@ -26,7 +26,7 @@ class TabularPreprocessor:
     def clean_features(self):
 
         """
-        Clean features
+        Clean features and target
         """
 
         # Change WWCode 84 (Shower(s) of rain and snow, moderate or heavy) to 83 (Shower(s) of rain and snow, slight)
@@ -60,7 +60,7 @@ class TabularPreprocessor:
         """
 
         df_all = pd.concat((self.df_train, self.df_test), axis=0, ignore_index=True)
-        continuous_features = ['AirTemperature']
+        continuous_features = ['AirTemperature', 'RelativeHumidity']
         categorical_features = ['Year']
 
         for categorical_feature in categorical_features:
@@ -69,6 +69,12 @@ class TabularPreprocessor:
                     df_agg = df_all.groupby(categorical_feature)[continuous_feature].agg(aggregation)
                     self.df_train[f'{categorical_feature}_{continuous_feature}_{aggregation}'] = self.df_train[categorical_feature].map(df_agg)
                     self.df_test[f'{categorical_feature}_{continuous_feature}_{aggregation}'] = self.df_test[categorical_feature].map(df_agg)
+
+        for continuous_feature in continuous_features:
+            for aggregation in ['mean', 'std', 'min', 'max']:
+                df_agg = df_all.groupby(['Year', 'Month'])[continuous_feature].transform(aggregation).values
+                self.df_train[f'Year_Month_{continuous_feature}_{aggregation}'] = df_agg[:len(self.df_train)]
+                self.df_test[f'Year_Month_{continuous_feature}_{aggregation}'] = df_agg[len(self.df_train):]
 
     def create_lag_lead_features(self):
 
@@ -82,7 +88,7 @@ class TabularPreprocessor:
         # Shift features with or without imputation
         for continuous_feature in continuous_features:
 
-            for period in [-6, -5, -4, -3, -2, -1, 1]:
+            for period in [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 1]:
 
                 if period > 0:
                     if self.fill_missing_values:
@@ -99,7 +105,7 @@ class TabularPreprocessor:
                 self.df_test[f'{continuous_feature}_shift{period}'] = shift_feature[len(self.df_train):]
 
             # Diff features with or without imputation
-            for period in [1]:
+            for period in [-1, 1]:
 
                 if self.fill_missing_values:
                     diff_feature = df_all[continuous_feature].diff(periods=period).fillna(0).values
@@ -131,7 +137,7 @@ class TabularPreprocessor:
 
         for continuous_feature in continuous_features:
             for window in [3, 6]:
-                for aggregation in ['mean', 'std']:
+                for aggregation in ['mean', 'std', 'sum', 'var']:
                     rolling_feature = df_all.rolling(window=window, min_periods=1)[continuous_feature].agg(aggregation).fillna(0).values
                     self.df_train[f'{continuous_feature}_rolling{window}_{aggregation}'] = rolling_feature[:len(self.df_train)]
                     self.df_test[f'{continuous_feature}_rolling{window}_{aggregation}'] = rolling_feature[len(self.df_train):]
@@ -164,6 +170,20 @@ class TabularPreprocessor:
             agg_feature = df_all.groupby(['Year', 'DayOfYear'])[sun_feature].transform('sum').values
             self.df_train[f'Year_DayOfYear_{sun_feature}_sum'] = agg_feature[:len(self.df_train)]
             self.df_test[f'Year_DayOfYear_{sun_feature}_sum'] = agg_feature[len(self.df_train):]
+
+    def create_target_features(self):
+
+        """
+        Create target aggregation features
+        """
+
+        categorical_features = ['Month', 'WeekOfYear', 'DayOfYear']
+
+        for categorical_feature in categorical_features:
+            for aggregation in ['mean', 'std', 'min', 'max']:
+                df_agg = self.df_train.groupby(categorical_feature)['Generation'].agg(aggregation)
+                self.df_train[f'{categorical_feature}_Generation_{aggregation}'] = self.df_train[categorical_feature].map(df_agg)
+                self.df_test[f'{categorical_feature}_Generation_{aggregation}'] = self.df_test[categorical_feature].map(df_agg)
 
     def normalize_features(self):
 
@@ -212,6 +232,7 @@ class TabularPreprocessor:
         self.create_aggregation_features()
         self.create_lag_lead_features()
         self.create_rolling_features()
+        self.create_target_features()
         self.create_sun_features()
 
         if self.normalize:
